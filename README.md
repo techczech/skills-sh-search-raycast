@@ -2,6 +2,8 @@
 
 Search skills from skills.sh and install them via the `skills` CLI.
 
+Repository: https://github.com/techczech/skills-sh-search-raycast
+
 ## Features
 - Fetches the skills leaderboard from skills.sh
 - Filters by skill name or repo
