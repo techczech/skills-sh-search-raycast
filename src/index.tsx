@@ -1,4 +1,11 @@
-import { Action, ActionPanel, Icon, List, Toast, showToast } from "@raycast/api";
+import {
+  Action,
+  ActionPanel,
+  Icon,
+  List,
+  Toast,
+  showToast,
+} from "@raycast/api";
 import { runAppleScript } from "@raycast/utils";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -54,12 +61,13 @@ export default function Command() {
   const [searchText, setSearchText] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
-  const [sortOption, setSortOption] = useState<"rank" | "popularity" | "company">(
-    "rank"
-  );
+  const [sortOption, setSortOption] = useState<
+    "rank" | "popularity" | "company"
+  >("rank");
   const [companyFilter, setCompanyFilter] = useState<string>("all");
   const [dropdownValue, setDropdownValue] = useState<string>("sort:rank");
-  const [lastDropdownValue, setLastDropdownValue] = useState<string>("sort:rank");
+  const [lastDropdownValue, setLastDropdownValue] =
+    useState<string>("sort:rank");
 
   const loadSkills = useCallback(async (controller: AbortController) => {
     setIsLoading(true);
@@ -99,7 +107,9 @@ export default function Command() {
       if (companyFilter === "all") {
         return skills;
       }
-      return skills.filter((skill) => skill.repo.split("/")[0] === companyFilter);
+      return skills.filter(
+        (skill) => skill.repo.split("/")[0] === companyFilter,
+      );
     }
 
     const tokens = query.split(/\s+/).filter(Boolean);
@@ -130,7 +140,10 @@ export default function Command() {
         if (haystack.includes(token)) {
           return true;
         }
-        return isSubsequence(token.replace(/[^a-z0-9]/g, ""), haystack.replace(/[^a-z0-9]/g, ""));
+        return isSubsequence(
+          token.replace(/[^a-z0-9]/g, ""),
+          haystack.replace(/[^a-z0-9]/g, ""),
+        );
       });
     });
   }, [skills, searchText, companyFilter]);
@@ -163,7 +176,9 @@ export default function Command() {
     };
 
     if (sortOption === "popularity") {
-      return list.sort((a, b) => parseInstalls(b.installs) - parseInstalls(a.installs));
+      return list.sort(
+        (a, b) => parseInstalls(b.installs) - parseInstalls(a.installs),
+      );
     }
     if (sortOption === "company") {
       return list.sort((a, b) => {
@@ -195,7 +210,10 @@ export default function Command() {
             shortcut={{ modifiers: ["cmd"], key: "r" }}
             onAction={() => setReloadKey((key) => key + 1)}
           />
-          <Action.OpenInBrowser title="Open Skills Directory" url={SKILLS_URL} />
+          <Action.OpenInBrowser
+            title="Open Skills Directory"
+            url={SKILLS_URL}
+          />
         </ActionPanel>
       }
       searchBarAccessory={
@@ -213,7 +231,9 @@ export default function Command() {
             setDropdownValue(value);
             setLastDropdownValue(value);
             if (value.startsWith("sort:")) {
-              setSortOption(value.replace("sort:", "") as "rank" | "popularity" | "company");
+              setSortOption(
+                value.replace("sort:", "") as "rank" | "popularity" | "company",
+              );
               return;
             }
             if (value.startsWith("company:")) {
@@ -237,7 +257,10 @@ export default function Command() {
             ))}
           </List.Dropdown.Section>
           <List.Dropdown.Section title="Actions">
-            <List.Dropdown.Item value="action:refresh" title="Refresh Skills List" />
+            <List.Dropdown.Item
+              value="action:refresh"
+              title="Refresh Skills List"
+            />
           </List.Dropdown.Section>
         </List.Dropdown>
       }
@@ -249,7 +272,10 @@ export default function Command() {
           description={errorMessage}
           actions={
             <ActionPanel>
-              <Action title="Retry" onAction={() => setReloadKey((key) => key + 1)} />
+              <Action
+                title="Retry"
+                onAction={() => setReloadKey((key) => key + 1)}
+              />
             </ActionPanel>
           }
         />
@@ -282,7 +308,8 @@ export default function Command() {
                   try {
                     await runInstallCommand(`npx skills add ${skill.repo}`);
                   } catch (error) {
-                    const message = error instanceof Error ? error.message : "Unknown error";
+                    const message =
+                      error instanceof Error ? error.message : "Unknown error";
                     await showToast({
                       style: Toast.Style.Failure,
                       title: "Install failed",
@@ -303,9 +330,12 @@ export default function Command() {
                 title="Install Skill (No Telemetry)"
                 onAction={async () => {
                   try {
-                    await runInstallCommand(`SKILLS_NO_TELEMETRY=1 npx skills add ${skill.repo}`);
+                    await runInstallCommand(
+                      `SKILLS_NO_TELEMETRY=1 npx skills add ${skill.repo}`,
+                    );
                   } catch (error) {
-                    const message = error instanceof Error ? error.message : "Unknown error";
+                    const message =
+                      error instanceof Error ? error.message : "Unknown error";
                     await showToast({
                       style: Toast.Style.Failure,
                       title: "Install failed",
@@ -318,11 +348,11 @@ export default function Command() {
                 title="Copy Install Command"
                 content={`npx skills add ${skill.repo}`}
               />
-              <Action.CopyToClipboard
-                title="Copy Repo"
-                content={skill.repo}
+              <Action.CopyToClipboard title="Copy Repo" content={skill.repo} />
+              <Action.OpenInBrowser
+                title="Open Skills Directory"
+                url={SKILLS_URL}
               />
-              <Action.OpenInBrowser title="Open Skills Directory" url={SKILLS_URL} />
             </ActionPanel>
           }
         />
