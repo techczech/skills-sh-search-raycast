@@ -18,6 +18,11 @@ type Skill = {
   installs: string;
 };
 
+type SkillDetail = {
+  url: string;
+  summary: string;
+};
+
 async function fetchSkills(signal?: AbortSignal): Promise<Skill[]> {
   const response = await fetch(SKILLS_URL, { signal });
   if (!response.ok) {
@@ -50,6 +55,32 @@ async function fetchSkills(signal?: AbortSignal): Promise<Skill[]> {
   return matches.sort((a, b) => a.rank - b.rank);
 }
 
+function buildSkillUrl(skill: Skill) {
+  return `${SKILLS_URL}${skill.repo}/${skill.name}`;
+}
+
+function stripHtmlToText(html: string) {
+  const withoutScripts = html
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ");
+  const withoutTags = withoutScripts.replace(/<[^>]+>/g, " ");
+  return withoutTags.replace(/\s+/g, " ").trim();
+}
+
+async function fetchSkillDetail(
+  url: string,
+  signal?: AbortSignal,
+): Promise<SkillDetail> {
+  const response = await fetch(url, { signal });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch skill detail: ${response.status}`);
+  }
+  const html = await response.text();
+  const text = stripHtmlToText(html);
+  const summary = text.slice(0, 800) || "No description found.";
+  return { url, summary };
+}
+
 async function runInstallCommand(command: string) {
   const script = `tell application "Terminal"\nactivate\ndo script ${JSON.stringify(command)}\nend tell`;
   await runAppleScript(script);
@@ -68,6 +99,10 @@ export default function Command() {
   const [dropdownValue, setDropdownValue] = useState<string>("sort:rank");
   const [lastDropdownValue, setLastDropdownValue] =
     useState<string>("sort:rank");
+  const [selectedSkillId, setSelectedSkillId] = useState<string | null>(null);
+  const [skillDetails, setSkillDetails] = useState<Record<string, SkillDetail>>(
+    {},
+  );
 
   const loadSkills = useCallback(async (controller: AbortController) => {
     setIsLoading(true);
@@ -100,6 +135,34 @@ export default function Command() {
     void loadSkills(controller);
     return () => controller.abort();
   }, [loadSkills, reloadKey]);
+
+  useEffect(() => {
+    if (!selectedSkillId) {
+      return;
+    }
+    if (skillDetails[selectedSkillId]) {
+      return;
+    }
+    const skill = skills.find(
+      (item) => `${item.rank}-${item.repo}` === selectedSkillId,
+    );
+    if (!skill) {
+      return;
+    }
+    const controller = new AbortController();
+    const url = buildSkillUrl(skill);
+    fetchSkillDetail(url, controller.signal)
+      .then((detail) => {
+        setSkillDetails((prev) => ({ ...prev, [selectedSkillId]: detail }));
+      })
+      .catch(() => {
+        setSkillDetails((prev) => ({
+          ...prev,
+          [selectedSkillId]: { url, summary: "Failed to load description." },
+        }));
+      });
+    return () => controller.abort();
+  }, [selectedSkillId, skillDetails, skills]);
 
   const filteredSkills = useMemo(() => {
     const query = searchText.trim().toLowerCase();
@@ -203,6 +266,7 @@ export default function Command() {
           : `Skills Directory · ${companyFilter}`
       }
       throttle
+      onSelectionChange={setSelectedSkillId}
       actions={
         <ActionPanel>
           <Action
@@ -284,17 +348,33 @@ export default function Command() {
       {sortedSkills.map((skill) => (
         <List.Item
           key={`${skill.rank}-${skill.repo}`}
+          id={`${skill.rank}-${skill.repo}`}
           title={skill.name}
           subtitle={skill.repo}
           accessories={[
             { text: `#${skill.rank}` },
             { text: `${skill.installs} installs` },
           ]}
+          detail={
+            <List.Item.Detail
+              markdown={
+                skillDetails[`${skill.rank}-${skill.repo}`]
+                  ? `### ${skill.name}\n\n${
+                      skillDetails[`${skill.rank}-${skill.repo}`].summary
+                    }\n\n${skillDetails[`${skill.rank}-${skill.repo}`].url}`
+                  : `### ${skill.name}\n\nLoading details...`
+              }
+            />
+          }
           actions={
             <ActionPanel>
               <Action.CopyToClipboard
                 title="Copy Install Command"
                 content={`npx skills add ${skill.repo}`}
+              />
+              <Action.OpenInBrowser
+                title="Open Skill Page"
+                url={buildSkillUrl(skill)}
               />
               <Action
                 title="Refresh Skills List"
@@ -343,10 +423,6 @@ export default function Command() {
                     });
                   }
                 }}
-              />
-              <Action.CopyToClipboard
-                title="Copy Install Command"
-                content={`npx skills add ${skill.repo}`}
               />
               <Action.CopyToClipboard title="Copy Repo" content={skill.repo} />
               <Action.OpenInBrowser
